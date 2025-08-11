@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VitaSphere - AI & Social Hub</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+  <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+</head>
+<body class="bg-gradient-to-r from-blue-100 to-purple-100 font-sans">
+  <!-- Elegant Homepage Design -->
+  <header class="bg-gradient-to-r from-blue-500 to-purple-600 text-white py-6">
+    <div class="container mx-auto px-6 flex justify-between items-center">
+      <h1 class="text-3xl font-bold">VitaSphere</h1>
+      <nav class="space-x-6">
+        <a href="#" class="hover:text-yellow-300 transition" onclick="switchPage('home')">Home</a>
+        <a href="#" class="hover:text-yellow-300 transition" onclick="switchPage('live')">Live</a>
+        <a href="#" class="hover:text-yellow-300 transition" onclick="switchPage('store')">Store</a>
+        <a href="#" class="hover:text-yellow-300 transition" onclick="switchPage('chat')">Chat</a>
+        <a href="login.html" class="hover:text-yellow-300 transition">Login</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container mx-auto px-6 py-8">
+    <div id="home-content" class="grid grid-cols-3 gap-6">
+      <!-- Featured Section -->
+      <div class="col-span-2 bg-white p-6 rounded-lg shadow-lg">
+        <h2 id="content-title" class="text-2xl font-semibold mb-4 text-gray-800">Welcome to VitaSphere</h2>
+        <p class="text-gray-600">Connect, learn, and interact with AI and global friends!</p>
+        <div id="chat-container" class="mt-4">
+          <div id="chat-messages" class="h-64 overflow-y-auto border p-2 bg-gray-50 rounded"></div>
+          <input type="text" id="chat-input" placeholder="Type your message..." class="w-full p-2 mt-2 border rounded">
+          <button id="send-button" class="bg-blue-500 text-white p-2 mt-2 rounded hover:bg-blue-600">Send</button>
+        </div>
+      </div>
+      <!-- AI Roster -->
+      <div class="bg-white p-4 rounded-lg shadow-lg">
+        <h2 id="directory-title" class="text-xl font-semibold mb-4 text-gray-800">AI Characters</h2>
+        <div id="ai-list" class="space-y-2"></div>
+      </div>
+    </div>
+
+    <div id="live-content" class="hidden mt-6">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">Live Streams</h2>
+      <select id="sort-select" class="p-2 border rounded" onchange="sortLiveRooms(this.value)">
+        <option value="popularity">By Popularity</option>
+        <option value="likes">By Likes</option>
+        <option value="rewards">By Rewards</option>
+      </select>
+      <div id="live-video-container" class="grid grid-cols-3 gap-4 mt-2"></div>
+    </div>
+
+    <div id="store-content" class="hidden mt-6">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">VitaSphere Store</h2>
+      <div id="store-items" class="grid grid-cols-3 gap-4"></div>
+      <div id="cart" class="mt-4 p-4 bg-white rounded-lg shadow-lg">
+        <h3 class="text-lg font-semibold">Cart</h3>
+        <ul id="cart-items"></ul>
+        <button id="checkout-btn" class="bg-green-500 text-white p-2 mt-2 rounded hover:bg-green-600">Checkout</button>
+      </div>
+    </div>
+
+    <div id="chat-content" class="hidden mt-6">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">Chat Room</h2>
+      <div id="chat-room" class="h-64 overflow-y-auto border p-2 bg-gray-50 rounded"></div>
+      <input type="text" id="room-chat-input" placeholder="Type group message..." class="w-full p-2 mt-2 border rounded">
+      <button id="room-send-btn" class="bg-blue-500 text-white p-2 mt-2 rounded hover:bg-blue-600">Send</button>
+    </div>
+  </div>
+
+  <footer class="bg-gray-800 text-white py-4 text-center mt-8">
+    <p>&copy; 2025 VitaSphere. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // Language Detection and Switching
+    async function detectLanguage() {
+      try {
+        const response = await fetch('https://api.ipgeolocation.io/ipgeo?apiKey=YOUR_IPGEO_API_KEY');
+        const data = await response.json();
+        const langMap = {
+          'US': 'en', 'CN': 'zh', 'JP': 'ja', 'SA': 'ar', 'IR': 'fa', 'AF': 'ps',
+          'ES': 'es', 'PT': 'pt', 'DE': 'de', 'FR': 'fr'
+        };
+        const detectedLang = langMap[data.country_code] || 'en';
+        changeLanguage(detectedLang);
+      } catch (error) {
+        console.error('Language detection failed:', error);
+        changeLanguage('en'); // Default to English
+      }
+    }
+
+    const translations = {
+      en: { contentTitle: "Welcome to VitaSphere", directoryTitle: "AI Characters", home: "Home", live: "Live", store: "Store", chat: "Chat", login: "Login" },
+      zh: { contentTitle: "欢迎体验 VitaSphere", directoryTitle: "AI 虚拟人名册", home: "主页", live: "直播间", store: "商店", chat: "聊天", login: "登录" },
+      ja: { contentTitle: "VitaSphereへようこそ", directoryTitle: "AIキャラクター一覧", home: "ホーム", live: "ライブ", store: "ストア", chat: "チャット", login: "ログイン" },
+      ar: { contentTitle: "مرحبًا بك في VitaSphere", directoryTitle: "قائمة الشخصيات الذكية", home: "الرئيسية", live: "البث المباشر", store: "المتجر", chat: "دردشة", login: "تسجيل الدخول" },
+      fa: { contentTitle: "به VitaSphere خوش آمدید", directoryTitle: "فهرست شخصیت‌های هوش مصنوعی", home: "خانه", live: "پخش زنده", store: "فروشگاه", chat: "چت", login: "ورود" },
+      ps: { contentTitle: "VitaSphere ته ښه راغلاست", directoryTitle: "AI کرکټرونو لړلیک", home: "کور", live: "ژوندی خپرونه", store: "دوکان", chat: "چټ", login: "ننوتل" },
+      es: { contentTitle: "Bienvenido a VitaSphere", directoryTitle: "Lista de Personajes IA", home: "Inicio", live: "En Vivo", store: "Tienda", chat: "Chat", login: "Iniciar Sesión" },
+      pt: { contentTitle: "Bem-vindo ao VitaSphere", directoryTitle: "Lista de Personagens IA", home: "Início", live: "Ao Vivo", store: "Loja", chat: "Bate-Papo", login: "Login" },
+      de: { contentTitle: "Willkommen bei VitaSphere", directoryTitle: "KI-Charaktere", home: "Startseite", live: "Live", store: "Shop", chat: "Chat", login: "Anmelden" },
+      fr: { contentTitle: "Bienvenue sur VitaSphere", directoryTitle: "Liste des Personnages IA", home: "Accueil", live: "En Direct", store: "Boutique", chat: "Chat", login: "Connexion" }
+    };
+
+    let currentLanguage = 'en';
+
+    function changeLanguage(lang) {
+      currentLanguage = lang;
+      document.getElementById('content-title').textContent = translations[lang].contentTitle;
+      document.getElementById('directory-title').textContent = translations[lang].directoryTitle;
+      document.querySelectorAll('nav a')[0].textContent = translations[lang].home;
+      document.querySelectorAll('nav a')[1].textContent = translations[lang].live;
+      document.querySelectorAll('nav a')[2].textContent = translations[lang].store;
+      document.querySelectorAll('nav a')[3].textContent = translations[lang].chat;
+      document.querySelectorAll('nav a')[4].textContent = translations[lang].login;
+    }
+
+    // Page Switching
+    function switchPage(page) {
+      const pages = ['home-content', 'live-content', 'store-content', 'chat-content'];
+      pages.forEach(p => document.getElementById(p).classList.add('hidden'));
+      document.getElementById(`${page}-content`).classList.remove('hidden');
+    }
+
+    // Chat Functionality
+    const socket = io();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      detectLanguage();
+
+      const chatInput = document.getElementById('chat-input');
+      const chatMessages = document.getElementById('chat-messages');
+      const sendButton = document.getElementById('send-button');
+
+      sendButton.addEventListener('click', sendChat);
+      chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChat(); });
+
+      async function sendChat() {
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        chatMessages.innerHTML += `<p><strong>You:</strong> ${message}</p>`;
+        chatInput.value = '';
+
+        try {
+          const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message })
+          });
+          const data = await response.json();
+          chatMessages.innerHTML += `<p><strong>AI:</strong> ${data.reply}</p>`;
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        } catch (error) {
+          console.error('Chat error:', error);
+          chatMessages.innerHTML += `<p><strong>Error:</strong> Failed to connect to AI</p>`;
+        }
+      }
+
+      // AI Roster
+      const aiNames = ['Alice', 'Bob', 'Charlie', 'David', 'Emma', 'Fatima', 'Hiroshi', 'Isabella', 'Jamal', 'Khadija'];
+      const aiList = document.getElementById('ai-list');
+      aiNames.forEach(name => {
+        const div = document.createElement('div');
+        div.className = 'p-2 bg-gray-200 rounded cursor-pointer hover:bg-gray-300';
+        div.innerHTML = `<span>${name}</span> <button onclick="startVideoChat('${name}')" class="ml-2 bg-blue-500 text-white p-1 rounded">Video Chat</button>`;
+        aiList.appendChild(div);
+      });
+
+      // Live Rooms
+      function updateLiveRooms() {
+        const container = document.getElementById('live-video-container');
+        container.innerHTML = '<p>Loading live streams...</p>'; // Placeholder
+      }
+
+      // Store and Gifts
+      const gifts = [];
+      for (let i = 1; i <= 36; i++) {
+        const price = 10 + (i - 1) * (9999 - 10) / 35;
+        gifts.push({ id: i, name: `Gift ${i}`, price: price.toFixed(2) });
+      }
+      const storeItems = document.getElementById('store-items');
+      gifts.forEach(gift => {
+        const div = document.createElement('div');
+        div.className = 'p-4 bg-white rounded shadow';
+        div.innerHTML = `<h3>${gift.name}</h3><p>$${gift.price}</p><button onclick="addToCart(${gift.id}, '${gift.name}', ${gift.price})" class="bg-green-500 text-white p-1 rounded">Add to Cart</button>`;
+        storeItems.appendChild(div);
+      });
+
+      let cart = [];
+      function addToCart(id, name, price) {
+        cart.push({ id, name, price });
+        updateCart();
+      }
+
+      function updateCart() {
+        const cartItems = document.getElementById('cart-items');
+        cartItems.innerHTML = cart.map(item => `<li>${item.name} - $${item.price}</li>`).join('');
+      }
+
+      document.getElementById('checkout-btn').addEventListener('click', () => {
+        alert('Checkout initiated. Funds will be held for 7 days.');
+      });
+
+      // Video Chat Placeholder
+      window.startVideoChat = (name) => {
+        const rate = prompt(`Set video chat rate for ${name} (1-20 USD/min):`, 10);
+        if (rate && rate >= 1 && rate <= 20) {
+          alert(`Starting video chat with ${name} at $${rate}/min.`);
+        } else {
+          alert('Invalid rate. Please enter 1-20 USD/min.');
+        }
+      };
+    });
+  </script>
+</body>
+</html>
